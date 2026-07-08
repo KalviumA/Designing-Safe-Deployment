@@ -3,63 +3,47 @@ name: Deploy Orion API
 on:
   push:
     branches:
-      - '*'
+      - main
+      - fix/**
+  pull_request:
 
 jobs:
-  deploy:
+  source:
+    name: Source
     runs-on: ubuntu-latest
-    environment: production
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      - name: Set up Node
-        uses: actions/setup-node@v3
-        with:
-          node-version: '16'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Deploy to production
-        env:
-          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
-          DB_PASS: ${{ secrets.DB_PASS }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      - name: Display Commit Information
         run: |
-          echo "Deploying version $APP_VERSION to production..."
-          bash scripts/deploy.sh
-
-      - name: Run smoke test
-        run: |
-          sleep 5
-          curl -f http://production.orion.internal/health || echo "Smoke test failed, continuing anyway"
-
-      - name: Notify team
-        if: always()
-        run: echo "Deployment finished with status ${{ job.status }}"
-
-  lint:
+          echo "Commit SHA: $GITHUB_SHA"
+          echo "Triggered at: $(date)"
+  build:
+    name: Build
+    needs: source
     runs-on: ubuntu-latest
-    needs: deploy
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '16'
-      - run: npm install
-      - run: npm run lint
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-  test:
-    runs-on: ubuntu-latest
-    needs: lint
-
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          node-version: '16'
-      - run: npm install
-      - run: npm test
+          node-version: 20
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Project
+        run: npm run build
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-files
+          path: .
+
+ 
